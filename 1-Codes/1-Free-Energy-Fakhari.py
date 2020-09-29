@@ -1,5 +1,6 @@
 # Besm Allah Al-Rahman Al-Rahim
-from numpy import array, ones, zeros, empty, diag, sum, sqrt, cos, pi, mean, mod, double, matmul
+# Ref. : https://doi.org/10.1016/j.advwatres.2018.02.005
+from numpy import logical_and,array, ones, zeros, empty, diag, sum, sqrt, cos, pi, mean, mod, double, matmul
 from math import tanh
 from tkinter import filedialog
 from pandas import read_excel, DataFrame, ExcelWriter
@@ -10,8 +11,8 @@ from copy import deepcopy
     
 x = time()
 # rading style
-Adress = filedialog.askopenfilename()
-#Adress = 'D:/PythonLBM/Free-Energy/Fakhari-14-Aban/FakhariMedia.xlsx'
+#Adress = filedialog.askopenfilename()
+Adress = 'C:/Users/masoudi/Documents/GitHub/LBM-PF/1-Codes/FakhariMedia.xlsx'
 excel_file = read_excel(Adress, sheet_name='new300_400' , header=None)
 Style = array(excel_file.values)
 Style = Style.astype(int)
@@ -51,12 +52,12 @@ nu_real_1 = visc_real_1/rho_real_1          # m2/s
 nu_real_0 = visc_real_0/rho_real_0          # m2/s
 contact_angle = double(45)                          # in degrees (for user input)
 contact_angle = double(contact_angle * pi / 180)    # converting to radian to use in simulation
-q_in_real = double(0.05) / 60000000                 # m3/s = ml/min / 60000000
+q_in_real = double(0.0005) / 60000000                 # m3/s = ml/min / 60000000
 
 # conversion parameters
-rho_conversion = 1000            # (kg/m3)/lu            
-x_conversion = double(10) * 10**(-6)     # m/lu
-t_conversion = double(10) * 10**(-6)     # s/lu
+rho_conversion = 1000            # (kg/m3)/lu  = rho           
+x_conversion = double(10) * 10**(-6)     # m/lu = dx
+t_conversion = double(10) * 10**(-6)     # s/lu = dt
 
 # physical parameters in lattice units
 rho_1 = rho_real_1 / rho_conversion     # Heavier component --> 1
@@ -67,10 +68,10 @@ nu_1 = nu_real_1 * t_conversion / x_conversion**2
 nu_0 = nu_real_0 * t_conversion / x_conversion**2
 surface_tension = surface_tension_real * t_conversion**2 / (rho_conversion) / (x_conversion**3) 
 q_in = q_in_real * t_conversion / x_conversion**3     # lu_x**3/lu_t
-u_in_average = q_in / (ny-2)    # lu_x/lu_t
+u_in_average = q_in / (ny-2)/dx    # lu_x/lu_t
 
 # neccessary constants for calculation of chemical potential --> in text - above eq.(4)
-interface_thickness = 3 #lu --> this value is proposed in text Sect. 3.2 and Fakhari et al. (2017a)
+interface_thickness = 3 #lu --> this value is proposed in text Sect. 3.2 and Fakhari et al. (2017a) (https://doi.org/10.1016/j.jcp.2017.03.062)
 betha = 12*surface_tension/interface_thickness
 kappa = 3*surface_tension*interface_thickness/2
 
@@ -80,7 +81,7 @@ phi = zeros((ny,nx))        # phi=0 for lighter fluid --> CO2
                             # phi=1 for heavier fluid --> Water
 phi_initialization = zeros((1,nx))
 for i in range(nx): # using eq.(28)
-    phi_initialization[0,i] = 0.5 * (1 + tanh(((i-51)+1 - interface_thickness)/(interface_thickness/2)))
+    phi_initialization[0,i] = 0.5 * (1 + tanh(((i)+1 - interface_thickness)/(interface_thickness/2)))
 phi[:,:] = deepcopy(phi_initialization)
 
 # Identifing boundery nodes in form of 2D & 3D arrays + finding normal vector for all boundary solid nodes
@@ -102,7 +103,7 @@ for j in range(ny):
             normal_half_length = sqrt(solid_normal_vectors_2d[j,i,0]**2 + solid_normal_vectors_2d[j,i,1]**2) / 2
             if contact_angle == 0:
                 #phi[y_solid_boundary[i],x_solid_boundary[i]] = phi[newy,newx]
-                phi[j,i] = phi[newy,newx]
+                phi[j,i] = phi[newy,newx] #phi_s=phi_f
             else: 
                 a1 = double(-1 * normal_half_length * sqrt(2*betha/kappa) * cos(contact_angle))
                 phi[j,i] = 1/a1 * (1 + a1 - sqrt((1+a1)**2-4*a1*phi[newy,newx] )) -  phi[newy,newx]
@@ -184,7 +185,7 @@ Fs_y = chemical_potential * phi_y_1st_derivative
 g_eq = zeros((ny,nx,n_pop), dtype=double)
 h_eq = zeros((ny,nx,n_pop), dtype=double)
 g_pc = zeros((ny,nx,n_pop), dtype=double )
-h_pc = zeros((ny,nx,n_pop), dtype=double)
+h_pc = zeros((ny,nx,n_pop), dtype=double) # phase field distribuition function
 collision_operator = zeros((ny,nx,n_pop), dtype= double)
 
 # equilibrium distribuion
@@ -279,7 +280,7 @@ S_hat = array([[ 0.,  0,   0,   0,   0,    0,  0,    0,  0],
                [ 0,   0,   0,   0,   0,    0,  0,    1., 0],
                [ 0,   0,   0,   0,   0,    0,  0,    0,  1.]] , dtype=double)
 # S_hat = diag((omega0_rho,omega1_e,omega2_epsilon,omega3_jx,omega4_qx,omega5_jy,omega6_qx,omega7_pxx,omega8_pxy))
-minus_M_S_M = (-1) * matmul( matmul(M_inverse, S_hat) , M )  ;   # = -M_inverse*S*M
+minus_M_S_M = (-1) * matmul( matmul(M_inverse, S_hat) , M )    # = -M_inverse*S*M
 
 #writer = ExcelWriter(r"D:/PythonLBM/Free-Energy/force.xlsx" , engine='xlsxwriter')
 # main loop
@@ -290,8 +291,8 @@ for t in range(n_steps):
     
     # phase field calculation --> eq.(12)
     phi = sum(h, axis=2)
-    phi[:,0] = 0        # in text- above eq.(30) 
-                
+    phi[:,0] = 0        # in text- above eq.(30) zero phase field at inlet
+#    phi[logical_and (Style==0,(coords_solid_boundaries[:,:,0]==-100)) ]=0
           
     # phase field for solid boundaries--> eq.(25) and eq.(26) 
     # in matrix form
@@ -358,6 +359,8 @@ for t in range(n_steps):
     v_aparent = rho_v/rho  
     v1 = v_aparent/Cs2 + dt*Fs_y/(2*rho)     #eq.(21a)
     
+    #u1[Style==0]=0
+    #v1[Style==0]=0
     # Setting velocity of inlet and outlet boundary condition
     u1[1:ny-1,0] = u_in_average 
     v1[1:ny-1,0] = 0
@@ -409,8 +412,10 @@ for t in range(n_steps):
             if Style[j,i]:
                 S_hat[7,7] = Sv[j,i]  # fakhari and bolster eq.(22)
                 S_hat[8,8] = Sv[j,i]  # fakhari and bolster eq.(22)
+                minus_M_S_M = (-1) * matmul( matmul(M_inverse, S_hat) , M )
                 #collision_operator[j,i,:] = (-1) * M_inverse.dot(S_hat.dot(M.dot(g[j,i,:]-g_eq[j,i,:])))
-                collision_operator[j,i,:] = (-1) * matmul(minus_M_S_M , (g[j,i,:]-g_eq[j,i,:]))
+                collision_operator[j,i,:] = matmul(minus_M_S_M , (g[j,i,:]-g_eq[j,i,:]))
+                #collision_operator[j,i,:] = minus_M_S_M * (g[j,i,:]-g_eq[j,i,:])
     
 # =============================================================================
 #     # Single Relaxation-time
@@ -430,11 +435,17 @@ for t in range(n_steps):
         for i in range(nx):
             if coords_solid_boundaries[j,i,0]!=-100 : # if this is a solid boundari node
                 for k in range(n_pop):
-                    newy = j - solid_normal_vectors_2d[j,i,0] ;
-                    newx = i + solid_normal_vectors_2d[j,i,1] ;
+                    newy = j - solid_normal_vectors_2d[j,i,0]
+                    newx = i + solid_normal_vectors_2d[j,i,1]
                     
-                    g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)] ; 
-                    h_pc[j,i,k] = h_pc[newy,newx,BounceBackD2Q9(k)] ; 
+                    g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)]
+                    h_pc[j,i,k] = h_pc[newy,newx,BounceBackD2Q9(k)]
+
+                    #newy = j - cy[k]
+                    #newx = i + cx[k]
+                    #if (newx!=-1) and (newx!=nx) and (newy!=-1) and (newy!=ny) :
+                        #g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)]
+                        #h_pc[j,i,k] = h_pc[newy,newx,BounceBackD2Q9(k)]
 
     # streamimng the fluid and solid boundary nodes 
     for j in range(ny):

@@ -180,21 +180,22 @@ class normal_vector:
                     elif j == self.ny-1 :
                         neigh = [0,0,Style[j-self.cy[2],i+self.cx[2]],0,0,Style[j-self.cy[5],i+self.cx[5]],Style[j-self.cy[6],i+self.cx[6]],0,0]        
                     
-                    if counter == 0 :
-                        #x_boundary[counter] = i 
-                        #y_boundary[counter] = j
-                        #neighbour_arrangement[counter,:] = neigh
-                        coordinates_of_solid_boundary[j,i,:] = [j,i]
-                        neighbour_arrangement_3d[j,i,:] = neigh
-                        counter += 1 
-                    else:
-                        #x_boundary = append(x_boundary, [i], axis=0)
-                        #y_boundary = append(y_boundary, [j], axis=0)
-                        #neighbour_arrangement = append(neighbour_arrangement, [neigh], axis=0)
-                        coordinates_of_solid_boundary[j,i,:] = [j,i]
-                        neighbour_arrangement_3d[j,i,:] = neigh
-                        counter += 1              
-        
+                    if sum(neigh, axis=0) > 0: # checking if at least one one fluid node exists around the solid boundary node. if exists go through this:
+                        if counter == 0 :
+                            #x_boundary[counter] = i 
+                            #y_boundary[counter] = j
+                            #neighbour_arrangement[counter,:] = neigh
+                            coordinates_of_solid_boundary[j,i,:] = [j,i]
+                            neighbour_arrangement_3d[j,i,:] = neigh
+                            counter += 1 
+                        else:
+                            #x_boundary = append(x_boundary, [i], axis=0)
+                            #y_boundary = append(y_boundary, [j], axis=0)
+                            #neighbour_arrangement = append(neighbour_arrangement, [neigh], axis=0)
+                            coordinates_of_solid_boundary[j,i,:] = [j,i]
+                            neighbour_arrangement_3d[j,i,:] = neigh
+                            counter += 1              
+            
         # asumption: i=0,1,nx-1,nx-2 are all set to be fluid nodes ==> there is no normal vector in i=0,nx-1
         # for Conrners:
         corners_x = array([0, self.nx-1, 0, self.nx-1], dtype=int)
@@ -210,20 +211,21 @@ class normal_vector:
                 if i==self.nx-1 and j==self.ny-1:
                     neigh = [0,0,Style[j-self.cy[2],i+self.cx[2]],Style[j-self.cy[3],i+self.cx[3]],0,0,Style[j-self.cy[6],i+self.cx[6]],0,0]
                 
-                if counter == 0 :
-                    #x_boundary[counter] = i 
-                    #y_boundary[counter] = j
-                    #neighbour_arrangement[counter,:] = neigh
-                    coordinates_of_solid_boundary[j,i,:] = [j,i]
-                    neighbour_arrangement_3d[j,i,:] = neigh
-                    counter += 1 
-                else:
-                    #x_boundary = append(x_boundary, [i], axis=0)
-                    #y_boundary = append(y_boundary, [j], axis=0)
-                    #neighbour_arrangement = append(neighbour_arrangement, [neigh], axis=0)
-                    coordinates_of_solid_boundary[j,i,:] = [j,i]
-                    neighbour_arrangement_3d[j,i,:] = neigh
-                    counter += 1       
+                if sum(neigh, axis=0) > 0: # checking if at least one one fluid node exists around the solid boundary node. if exists go through this:
+                    if counter == 0 :
+                        #x_boundary[counter] = i 
+                        #y_boundary[counter] = j
+                        #neighbour_arrangement[counter,:] = neigh
+                        coordinates_of_solid_boundary[j,i,:] = [j,i]
+                        neighbour_arrangement_3d[j,i,:] = neigh
+                        counter += 1 
+                    else:
+                        #x_boundary = append(x_boundary, [i], axis=0)
+                        #y_boundary = append(y_boundary, [j], axis=0)
+                        #neighbour_arrangement = append(neighbour_arrangement, [neigh], axis=0)
+                        coordinates_of_solid_boundary[j,i,:] = [j,i]
+                        neighbour_arrangement_3d[j,i,:] = neigh
+                        counter += 1       
                     
         return(coordinates_of_solid_boundary, neighbour_arrangement_3d)
 
