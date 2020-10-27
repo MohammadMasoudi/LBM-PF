@@ -509,12 +509,13 @@ def phi_1st_2nd_isotropic(phi,Style):
     c=dt=1
     Cs2=1./3
     
-    x_1st_derivative = zeros((ny,nx), dtype=double) * 100
-    y_1st_derivative = zeros((ny,nx), dtype=double) * 100
+    x_1st_derivative = zeros((ny,nx), dtype=double)
+    y_1st_derivative = zeros((ny,nx), dtype=double)
 #    x_2nd_derivative = zeros((ny,nx)) * 100 
 #    y_2nd_derivative = zeros((ny,nx)) * 100
-    laplacian_phi = zeros((ny,nx), dtype=double) * 100
+    laplacian_phi = zeros((ny,nx), dtype=double)
     
+    #eq 34 and 35 Ref. 2 
     for j in range(1,ny-1): 
         for i in range(1,nx-1):     # excluding inlet and outlet - we implement forward and backward difference on these nodes
             if Style[j,i]:  # if the current node is a fluid node
@@ -531,23 +532,43 @@ def phi_1st_2nd_isotropic(phi,Style):
                                             w[5]*( phi[j-cy[5],i+cx[5]] - phi[j,i] ) + w[6]*( phi[j-cy[6],i+cx[6]] - phi[j,i] ) + \
                                             w[7]*( phi[j-cy[7],i+cx[7]] - phi[j,i] ) + w[8]*( phi[j-cy[8],i+cx[8]] - phi[j,i] ) )
     
+    # top and bottom boundaries: (Nonslip B.C.)
+    
+    
+    
+    
+    # inlet and outlet for Periodic B.C:
+    #inlet:
+    #x_1st_derivative[1:ny-1,0] = (phi[1:ny-1,1] - phi[1:ny-1,-1])/3.0 + (phi[0:ny-2,1] - phi[2:ny,-1] + phi[2:ny,1] - phi[0:ny-2,-1])/12.0
+    #y_1st_derivative[1:ny-1,0] = (phi[0:ny-2,0] - phi[2:ny,0])/3.0 + (phi[0:ny-2,1] - phi[2:ny,-1] + phi[0:ny-2,-1] - phi[2:ny,1] )/12.0
+    #x_1st_derivative[0,0] = (phi[0,1] - phi[0,-1])/3.0 + ( phi[1,1] - phi[1,-1])/12.0
+    #y_1st_derivative[0,0] = 0 #???
+    
+    x_1st_derivative[:,0] = x_1st_derivative[:,nx-2]
+    y_1st_derivative[:,0] = y_1st_derivative[:,nx-2]
+    
+    x_1st_derivative[:,nx-1] = x_1st_derivative[:,1]
+    y_1st_derivative[:,nx-1] = y_1st_derivative[:,1]
+    
+    laplacian_phi[:,0] = laplacian_phi[:,nx-2]
+    laplacian_phi[:,nx-1] = laplacian_phi[:,1]
     # calculating inlet and aoutlet values (using forward and backward for x-derivative , and , central difference for y-derivative)
-    x_1st_derivative[:,0] = (phi[:,1] - phi[:,0])/(1*c*dt)              # left boundary --> Forward difference
-    x_1st_derivative[:,nx-1] = (phi[:,nx-1] - phi[:,nx-2])/(1*c*dt)     # right boundary --> Backward 
+    #x_1st_derivative[1:ny-1,0] = (phi[1:ny-1,1] - phi[1:ny-1,0])/(1*c*dt)              # left boundary --> Forward difference
+    #x_1st_derivative[1:ny-1,nx-1] = (phi[1:ny-1,nx-1] - phi[1:ny-1,nx-2])/(1*c*dt)     # right boundary --> Backward 
     # y direction derivatives
-    y_1st_derivative[1:ny-1,0] = (phi[0:ny-2,0] - phi[2:ny,0])/(2*c*dt)   # central # excluding upper-most and lower-most solid nodes
-    y_1st_derivative[1:ny-1,nx-1] = (phi[0:ny-2,nx-1] - phi[2:ny,nx-1])/(2*c*dt)   # central # excluding upper-most and lower-most solid nodes
+    #y_1st_derivative[1:ny-1,0] = (phi[0:ny-2,0] - phi[2:ny,0])/(2*c*dt)   # central # excluding upper-most and lower-most solid nodes
+    #y_1st_derivative[1:ny-1,nx-1] = (phi[0:ny-2,nx-1] - phi[2:ny,nx-1])/(2*c*dt)   # central # excluding upper-most and lower-most solid nodes
     
     # second derivative of 'phase-field' on every lattice node
     # x direction drivatives
-    phi_x_2nd_inlet = (phi[1:ny-1,2] - 2*phi[1:ny-1,1] + phi[1:ny-1,0]) / (c*dt)**2                   # left boundary --> forward --> (phi2-2*ph1+phi0)/dx**2
-    phi_x_2nd_outlet = (phi[1:ny-1,nx-1] -  2*phi[1:ny-1,nx-2] + phi[1:ny-1,nx-3])/(c*dt)**2        # right boundary --> backward   
+#    phi_x_2nd_inlet = (phi[1:ny-1,2] - 2*phi[1:ny-1,1] + phi[1:ny-1,0]) / (c*dt)**2                   # left boundary --> forward --> (phi2-2*ph1+phi0)/dx**2
+#    phi_x_2nd_outlet = (phi[1:ny-1,nx-1] -  2*phi[1:ny-1,nx-2] + phi[1:ny-1,nx-3])/(c*dt)**2        # right boundary --> backward   
     # y direction derivatives
-    phi_y_2nd_inlet = (phi[0:ny-2,0] - 2*phi[1:ny-1,0] + phi[2:ny,0])/(c*dt)**2   # left boundary --> central
-    phi_y_2nd_outlet = (phi[0:ny-2,nx-1] - 2*phi[1:ny-1,nx-1] + phi[2:ny,nx-1])/(c*dt)**2   # right boundary --> central
+#    phi_y_2nd_inlet = (phi[0:ny-2,0] - 2*phi[1:ny-1,0] + phi[2:ny,0])/(c*dt)**2   # left boundary --> central
+#    phi_y_2nd_outlet = (phi[0:ny-2,nx-1] - 2*phi[1:ny-1,nx-1] + phi[2:ny,nx-1])/(c*dt)**2   # right boundary --> central
     # calculating laplacian
-    laplacian_phi[1:ny-1,0] = phi_x_2nd_inlet + phi_y_2nd_inlet
-    laplacian_phi[1:ny-1,nx-1] = phi_x_2nd_outlet + phi_y_2nd_outlet
+#    laplacian_phi[1:ny-1,0] = phi_x_2nd_inlet + phi_y_2nd_inlet
+#    laplacian_phi[1:ny-1,nx-1] = phi_x_2nd_outlet + phi_y_2nd_outlet
     return x_1st_derivative,y_1st_derivative,laplacian_phi
 
 #def phi_1st_2nd_derivative_isotropic(phi,Style) 

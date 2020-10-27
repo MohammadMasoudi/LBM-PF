@@ -15,7 +15,11 @@ x = time()
 Adress = 'C:/Users/masoudi/Documents/GitHub/LBM-PF/1-Codes/FakhariMedia.xlsx'
 excel_file = read_excel(Adress, sheet_name='new300_400' , header=None)
 Style = array(excel_file.values)
+
+Style= ones ([52,100])
+Style[(0,51),:]=0
 Style = Style.astype(int)
+
 
 # writer for debugging
 #writer_g = ExcelWriter(r"D:/PythonLBM/Free-Energy/Fakhari-14-Aban/g.xlsx" , engine='xlsxwriter')
@@ -52,7 +56,7 @@ nu_real_1 = visc_real_1/rho_real_1          # m2/s
 nu_real_0 = visc_real_0/rho_real_0          # m2/s
 contact_angle = double(45)                          # in degrees (for user input)
 contact_angle = double(contact_angle * pi / 180)    # converting to radian to use in simulation
-q_in_real = double(0.0005) / 60000000                 # m3/s = ml/min / 60000000
+q_in_real = double(0.05) / 60000000                 # m3/s = ml/min / 60000000
 
 # conversion parameters
 rho_conversion = 1000            # (kg/m3)/lu  = rho           
@@ -69,7 +73,9 @@ nu_0 = nu_real_0 * t_conversion / x_conversion**2
 surface_tension = surface_tension_real * t_conversion**2 / (rho_conversion) / (x_conversion**3) 
 q_in = q_in_real * t_conversion / x_conversion**3     # lu_x**3/lu_t
 u_in_average = q_in / (ny-2)/dx    # lu_x/lu_t
-
+# implement a parabolic velocity profile at the inlet (like Poiseuille):
+U_max = 3/2*u_in_average
+U_inlet= -U_max /((ny-2)/2)* array([i for i in range(ny-2)]) * (array([i for i in range(1,ny-1)])-(ny-2))
 # neccessary constants for calculation of chemical potential --> in text - above eq.(4)
 interface_thickness = 3 #lu --> this value is proposed in text Sect. 3.2 and Fakhari et al. (2017a) (https://doi.org/10.1016/j.jcp.2017.03.062)
 betha = 12*surface_tension/interface_thickness
@@ -110,6 +116,7 @@ for j in range(ny):
                 if (1+a1)**2-4*a1*phi[newy,newx] < 0:
                     print('j= {0} , i= {1} \n' .format(j,i))
 
+phi[:,0] = 0 
 # density pre-definition
 rho = zeros((ny,nx))
 rho = rho_0 + phi*(rho_1 - rho_0)
@@ -127,9 +134,10 @@ v1 = zeros((ny,nx))
 P = zeros((ny,nx))
 
 # Setting velocity of inlet and outlet boundary condition
-u1[1:ny-1,0] = u_in_average 
-v1[1:ny-1,0] = 0
-u1_old = deepcopy(u1)
+u1[Style==0]=0
+v1[Style==0]=0
+u1[1:ny-1,0] = U_inlet 
+v1[:,0] = 0
 
 ###############################################################################################################################################################
 # Derivatives: pre-definition and calculations ################################################################################################################
@@ -197,9 +205,9 @@ for k in range(n_pop):
     h_eq[:,:,k] = Gamma*phi + w[k] * mobility/Cs2 * (4/interface_thickness*phi*(1-phi)) * (cx[k]*normal_x + cy[k]*normal_y)
     
     # force calculation on each lattice node --> eq.(15) :
-    force[:,:,k] = ( (Gamma-w[k])*(rho_1-rho_0)*Cs2 + Gamma*chemical_potential ) * ((cx[k]-u1)*phi_x_1st_derivative + (cy[k]-v1)*phi_y_1st_derivative)
+#    force[:,:,k] = ( (Gamma-w[k])*(rho_1-rho_0)*Cs2 + Gamma*chemical_potential ) * ((cx[k]-u1)*phi_x_1st_derivative + (cy[k]-v1)*phi_y_1st_derivative)
     # g_eq --> combining eq.(18) into eq.(17) :
-    g_eq[:,:,k] = ( P*w[k] + rho*Cs2*(Gamma-w[k]) ) - 0.5 * force[:,:,k]
+    g_eq[:,:,k] = w[k]#( P*w[k] + rho*Cs2*(Gamma-w[k]) ) - 0.5 * force[:,:,k]
     
     # output for debugging:
     #df_g = DataFrame(g_eq[:,:,k])
@@ -223,22 +231,23 @@ h = deepcopy(h_eq)
 g_pc = deepcopy(g_eq)
 h_pc = deepcopy(h_eq)
 
-phi = sum(h, axis=2)
+#phi = sum(h, axis=2)
 
 # u calculation --> #eq.(21a)
-g_right = g[:,:,[1,5,8]]
-g_left = g[:,:,[3,6,7]]
-rho_u = sum(g_right, axis=2) - sum(g_left, axis=2)
-u_aparent = rho_u/rho
-u1 = u_aparent/Cs2 + dt*Fs_x/(2*rho)     # eq.(21a)
-    
-# v calculation --> #eq.(21a)
-g_up = g[:,:,[2,5,6]]
-g_down = g[:,:,[4,7,8]]
-rho_v = sum(g_up, axis=2) - sum(g_down, axis=2) 
-v_aparent = rho_v/rho  
-v1 = v_aparent/Cs2 + dt*Fs_y/(2*rho)     #eq.(21a)
+#g_right = g[:,:,[1,5,8]]
+#g_left = g[:,:,[3,6,7]]
+#rho_u = sum(g_right, axis=2) - sum(g_left, axis=2)
+#u_aparent = rho_u/rho
+#u1 = u_aparent/Cs2 + dt*Fs_x/(2*rho)     # eq.(21a)
+#    
+## v calculation --> #eq.(21a)
+#g_up = g[:,:,[2,5,6]]
+#g_down = g[:,:,[4,7,8]]
+#rho_v = sum(g_up, axis=2) - sum(g_down, axis=2) 
+#v_aparent = rho_v/rho  
+#v1 = v_aparent/Cs2 + dt*Fs_y/(2*rho)     #eq.(21a)
 
+u1_old = deepcopy(u1)
 
 # MRT parameters --> from another paper from Fakhari, 2013 --> "Multiple-relaxation-time lattice Boltzmann method for immiscible fluids at high Reynolds numbers"
 M = array([[ 1,  1,  1,  1,  1,  1,  1,  1,  1],
@@ -290,80 +299,83 @@ for t in range(n_steps):
         zzz=1
     
     # phase field calculation --> eq.(12)
-    phi = sum(h, axis=2)
-    phi[:,0] = 0        # in text- above eq.(30) zero phase field at inlet
+    if t!=0:
+        phi = sum(h, axis=2)
+#        phi[phi>1]=1
+#        phi[phi<0]=0
+        phi[:,0] = 0        # in text- above eq.(30) zero phase field at inlet
 #    phi[logical_and (Style==0,(coords_solid_boundaries[:,:,0]==-100)) ]=0
           
     # phase field for solid boundaries--> eq.(25) and eq.(26) 
     # in matrix form
-    for j in range(ny):
-        for i in range(nx):
-            if coords_solid_boundaries[j,i,0] != -100 :
-                newy = j - solid_normal_vectors_2d[j,i,0]
-                newx = i + solid_normal_vectors_2d[j,i,1]
-                normal_half_length = sqrt(solid_normal_vectors_2d[j,i,0]**2 + solid_normal_vectors_2d[j,i,1]**2) / 2
-                if contact_angle == 0:
-                    #phi[y_solid_boundary[i],x_solid_boundary[i]] = phi[newy,newx]
-                    phi[j,i] = phi[newy,newx]
-                else: 
-                    a1 = double(-1 * normal_half_length * sqrt(2*betha/kappa) * cos(contact_angle))
-                    phi[j,i] = 1/a1 * (1 + a1 - sqrt((1+a1)**2-4*a1*phi[newy,newx] )) -  phi[newy,newx] 
-                    if (1+a1)**2-4*a1*phi[newy,newx] < 0:
-                        print('j= {0} , i= {1} , t= {2}\n' .format(j,i,t))
-    
+        for j in range(ny):
+            for i in range(nx):
+                if coords_solid_boundaries[j,i,0] != -100 :
+                    newy = j - solid_normal_vectors_2d[j,i,0]
+                    newx = i + solid_normal_vectors_2d[j,i,1]
+                    normal_half_length = sqrt(solid_normal_vectors_2d[j,i,0]**2 + solid_normal_vectors_2d[j,i,1]**2) / 2
+                    if contact_angle == 0:
+                        #phi[y_solid_boundary[i],x_solid_boundary[i]] = phi[newy,newx]
+                        phi[j,i] = phi[newy,newx]
+                    else: 
+                        a1 = double(-1 * normal_half_length * sqrt(2*betha/kappa) * cos(contact_angle))
+                        phi[j,i] = 1/a1 * (1 + a1 - sqrt((1+a1)**2-4*a1*phi[newy,newx] )) -  phi[newy,newx] 
+                        if (1+a1)**2-4*a1*phi[newy,newx] < 0:
+                            print('j= {0} , i= {1} , t= {2}\n' .format(j,i,t))
+        
     # Density calculation --> eq.(13) which was incorrect in paper --> 
-    rho = rho_0 + phi*(rho_1 - rho_0)
-
-# =============================================================================
-#     # calculating first and second derivative: (simple central difference + ignoring solid boundary nodes)
-#     phi_x_1st_derivative,phi_y_1st_derivative,phi_x_2nd_derivative,phi_y_2nd_derivative = phi_1st_2nd_derivative(phi,Style)
-# =============================================================================
-# =============================================================================
-#     #calculating first and second derivatives (simple central difference + considering solid boundary nodes)
-#     phi_x_1st_derivative,phi_y_1st_derivative,phi_x_2nd_derivative,phi_y_2nd_derivative = phi_1st_2nd_SimplewithSolid(phi,Style)
-#     
-# =============================================================================
-    # calculating first derivative of x,y and laplacian ( isotrpic centered diffrence)
-    phi_x_1st_derivative,phi_y_1st_derivative,laplacian_phi = phi_1st_2nd_isotropic(phi,Style)
-
-    # normal vector --> eq.(2)
-    magnitude_of_grad_phi = sqrt(phi_x_1st_derivative**2 + phi_y_1st_derivative**2) + epsilon
-    normal_x = phi_x_1st_derivative / (magnitude_of_grad_phi )
-    normal_y = phi_y_1st_derivative / (magnitude_of_grad_phi )
+        rho = rho_0 + phi*(rho_1 - rho_0)
     
-# =============================================================================
-#     # laplacian --> laplacian = 2ndOrderDerivative_x + 2ndOrderDerivative_y
-#     laplacian_phi = phi_x_2nd_derivative + phi_y_2nd_derivative
-# =============================================================================
+    # =============================================================================
+    #     # calculating first and second derivative: (simple central difference + ignoring solid boundary nodes)
+    #     phi_x_1st_derivative,phi_y_1st_derivative,phi_x_2nd_derivative,phi_y_2nd_derivative = phi_1st_2nd_derivative(phi,Style)
+    # =============================================================================
+    # =============================================================================
+    #     #calculating first and second derivatives (simple central difference + considering solid boundary nodes)
+    #     phi_x_1st_derivative,phi_y_1st_derivative,phi_x_2nd_derivative,phi_y_2nd_derivative = phi_1st_2nd_SimplewithSolid(phi,Style)
+    #     
+    # =============================================================================
+        # calculating first derivative of x,y and laplacian ( isotrpic centered diffrence)
+        phi_x_1st_derivative,phi_y_1st_derivative,laplacian_phi = phi_1st_2nd_isotropic(phi,Style)
     
-    # chemiucal potential calculation --> eq.(5)
-    free_energy = (phi**2) * (1-phi)**2     # eq.(4)
-    chemical_potential = 4*betha*phi*(phi-1)*(phi-1/2) - kappa*laplacian_phi    #eq.(5)
-
+        # normal vector --> eq.(2)
+        magnitude_of_grad_phi = sqrt(phi_x_1st_derivative**2 + phi_y_1st_derivative**2) + epsilon
+        normal_x = phi_x_1st_derivative / (magnitude_of_grad_phi )
+        normal_y = phi_y_1st_derivative / (magnitude_of_grad_phi )
+        
+    # =============================================================================
+    #     # laplacian --> laplacian = 2ndOrderDerivative_x + 2ndOrderDerivative_y
+    #     laplacian_phi = phi_x_2nd_derivative + phi_y_2nd_derivative
+    # =============================================================================
+        
+        # chemiucal potential calculation --> eq.(5)
+        free_energy = (phi**2) * (1-phi)**2     # eq.(4)
+        chemical_potential = 4*betha*phi*(phi-1)*(phi-1/2) - kappa*laplacian_phi    #eq.(5)
     
-    # Surface tension (F_s) calculation --> in text after eq.(7)
-    Fs_x = chemical_potential * phi_x_1st_derivative 
-    Fs_y = chemical_potential * phi_y_1st_derivative 
+        
+        # Surface tension (F_s) calculation --> in text after eq.(7)
+        Fs_x = chemical_potential * phi_x_1st_derivative 
+        Fs_y = chemical_potential * phi_y_1st_derivative 
+        
+        # u calculation --> #eq.(21a)
+        g_right = g[:,:,[1,5,8]]
+        g_left = g[:,:,[3,6,7]]
+        rho_u = sum(g_right, axis=2) - sum(g_left, axis=2)
+        u_aparent = rho_u/rho 
+        u1 = u_aparent/Cs2 + dt*Fs_x/(2*rho)     # eq.(21a)
+        
+        # v calculation --> #eq.(21a)
+        g_up = g[:,:,[2,5,6]]
+        g_down = g[:,:,[4,7,8]]
+        rho_v = sum(g_up, axis=2) - sum(g_down, axis=2) 
+        v_aparent = rho_v/rho  
+        v1 = v_aparent/Cs2 + dt*Fs_y/(2*rho)     #eq.(21a)
     
-    # u calculation --> #eq.(21a)
-    g_right = g[:,:,[1,5,8]]
-    g_left = g[:,:,[3,6,7]]
-    rho_u = sum(g_right, axis=2) - sum(g_left, axis=2)
-    u_aparent = rho_u/rho 
-    u1 = u_aparent/Cs2 + dt*Fs_x/(2*rho)     # eq.(21a)
-    
-    # v calculation --> #eq.(21a)
-    g_up = g[:,:,[2,5,6]]
-    g_down = g[:,:,[4,7,8]]
-    rho_v = sum(g_up, axis=2) - sum(g_down, axis=2) 
-    v_aparent = rho_v/rho  
-    v1 = v_aparent/Cs2 + dt*Fs_y/(2*rho)     #eq.(21a)
-    
-    #u1[Style==0]=0
-    #v1[Style==0]=0
-    # Setting velocity of inlet and outlet boundary condition
-    u1[1:ny-1,0] = u_in_average 
-    v1[1:ny-1,0] = 0
+        u1[Style==0]=0
+        v1[Style==0]=0
+        # Setting velocity of inlet and outlet boundary condition
+        u1[1:ny-1,0] = U_inlet 
+        v1[:,0] = 0
     
     if (mod(t,50)==0)&(t!=0):
         xx = time()
@@ -438,16 +450,17 @@ for t in range(n_steps):
                     newy = j - solid_normal_vectors_2d[j,i,0]
                     newx = i + solid_normal_vectors_2d[j,i,1]
                     
-                    g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)]
+#                    g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)]
                     h_pc[j,i,k] = h_pc[newy,newx,BounceBackD2Q9(k)]
 
-                    #newy = j - cy[k]
-                    #newx = i + cx[k]
-                    #if (newx!=-1) and (newx!=nx) and (newy!=-1) and (newy!=ny) :
-                        #g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)]
+                    newy = j - cy[k]
+                    newx = i + cx[k]
+                    if (newx!=-1) and (newx!=nx) and (newy!=-1) and (newy!=ny) :
+                        g_pc[j,i,k] = g_pc[newy,newx,BounceBackD2Q9(k)]
                         #h_pc[j,i,k] = h_pc[newy,newx,BounceBackD2Q9(k)]
 
     # streamimng the fluid and solid boundary nodes 
+    t1=time()
     for j in range(ny):
         for i in range(nx):
             if Style[j,i] or (coords_solid_boundaries[j,i,0]!=-100) :  # if this is a fluid node or a solid boundary node 
@@ -457,6 +470,8 @@ for t in range(n_steps):
                     if (newx!=-1) and (newx!=nx) and (newy!=-1) and (newy!=ny) :
                         g[newy,newx,k] = g_pc[j,i,k] ;
                         h[newy,newx,k] = h_pc[j,i,k] ;
+    t2=time()
+    print ('tot time: %s'%(t2-t1))  
         
 # =============================================================================
 #     #Streaming (when there is no streamming from solid boundary nodes)
@@ -507,14 +522,32 @@ for t in range(n_steps):
          
     # inlet velocity B.C --> just incomming populations 1,5,8:
     for j in range(1,ny-1):
-        g[j,0,1] = g[j,0,3] + 2*rho[j,0]*u1[j,0]/3 
-        h[j,0,1] = h[j,0,3] + 2*phi[j,0]*u1[j,0]/3 
+#        g[j,0,1] = g[j,0,3] + 2*rho[j,0]*u1[j,0]/3 
+#        h[j,0,1] = h[j,0,3] + 2*phi[j,0]*u1[j,0]/3 
+#        
+#        g[j,0,5] = g[j,0,7] + (g[j,0,4]-g[j,0,2])/2  + (u1[j,0]/6 + v1[j,0]/2)*rho[j,0]
+#        h[j,0,5] = h[j,0,7] + (h[j,0,4]-h[j,0,2])/2  + (u1[j,0]/6 + v1[j,0]/2)*phi[j,0]
+#        
+#        g[j,0,8] = g[j,0,6] + (g[j,0,2]-g[j,0,4])/2 + (u1[j,0]/6 - v1[j,0]/2)*rho[j,0]
+#        h[j,0,8] = h[j,0,6] + (h[j,0,2]-h[j,0,4])/2 + (u1[j,0]/6 - v1[j,0]/2)*phi[j,0]
+
+        g[j,0,1] = g[j,0,3] + 2*rho_0*u1[j,0]/3 
         
-        g[j,0,5] = g[j,0,7] + (g[j,0,4]-g[j,0,2])/2  + (u1[j,0]/6 + v1[j,0]/2)*rho[j,0]
-        h[j,0,5] = h[j,0,7] + (h[j,0,4]-h[j,0,2])/2  + (u1[j,0]/6 + v1[j,0]/2)*phi[j,0]
         
-        g[j,0,8] = g[j,0,6] + (g[j,0,2]-g[j,0,4])/2 + (u1[j,0]/6 - v1[j,0]/2)*rho[j,0]
-        h[j,0,8] = h[j,0,6] + (h[j,0,2]-h[j,0,4])/2 + (u1[j,0]/6 - v1[j,0]/2)*phi[j,0]
+        g[j,0,5] = g[j,0,7] + (g[j,0,4]-g[j,0,2])/2  + (u1[j,0]/6)*rho_0
+        
+        
+        g[j,0,8] = g[j,0,6] + (g[j,0,2]-g[j,0,4])/2 + (u1[j,0]/6)*rho_0
+        
+
+#        g[j,0,1] = g[j,0,3] + g_eq[j,0,1] - g_eq[j,0,3] #eq. 29
+        h[j,0,1] = h[j,0,3] + h_eq[j,0,1] - h_eq[j,0,3]
+#        
+#        g[j,0,5] = g[j,0,7] + g_eq[j,0,5] - g_eq[j,0,7]
+        h[j,0,5] = h[j,0,7] + h_eq[j,0,5] - h_eq[j,0,7]
+#        
+#        g[j,0,8] = g[j,0,6] + g_eq[j,0,8] - g_eq[j,0,6]
+        h[j,0,8] = h[j,0,6] + h_eq[j,0,8] - h_eq[j,0,6]
         
     # outlet convective B.C --> just incomming populations 3,6,7
     u_convective = max(u1[1:ny-1,nx-2]) # getting convective velocity from the node before the last node --> Fakhari eq.(31) and Lou et el.(2013) eq.(14)
