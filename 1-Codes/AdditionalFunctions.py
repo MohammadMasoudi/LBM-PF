@@ -532,12 +532,15 @@ def phi_1st_2nd_isotropic(phi,Style):
                                             w[5]*( phi[j-cy[5],i+cx[5]] - phi[j,i] ) + w[6]*( phi[j-cy[6],i+cx[6]] - phi[j,i] ) + \
                                             w[7]*( phi[j-cy[7],i+cx[7]] - phi[j,i] ) + w[8]*( phi[j-cy[8],i+cx[8]] - phi[j,i] ) )
     
-    # top and bottom boundaries: (Nonslip B.C.)
+    # top and bottom boundaries: (Nonslip B.C.) it is not important at all in solid nodes
+    x_1st_derivative[0,1:nx-2]=(phi[0,2:nx-1] - phi[0,0:nx-3])/3.0
+    y_1st_derivative[0,:]=0
+    
+    x_1st_derivative[ny-1,1:nx-2]=(phi[ny-1,2:nx-1] - phi[ny-1,0:nx-3])/3.0
+    y_1st_derivative[ny-1,:]=0
     
     
-    
-    
-    # inlet and outlet for Periodic B.C:
+    # inlet and outlet for Periodic B.C: # I do not think it really matters
     #inlet:
     #x_1st_derivative[1:ny-1,0] = (phi[1:ny-1,1] - phi[1:ny-1,-1])/3.0 + (phi[0:ny-2,1] - phi[2:ny,-1] + phi[2:ny,1] - phi[0:ny-2,-1])/12.0
     #y_1st_derivative[1:ny-1,0] = (phi[0:ny-2,0] - phi[2:ny,0])/3.0 + (phi[0:ny-2,1] - phi[2:ny,-1] + phi[0:ny-2,-1] - phi[2:ny,1] )/12.0
