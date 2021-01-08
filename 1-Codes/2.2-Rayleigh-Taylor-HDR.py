@@ -30,7 +30,7 @@ x = time()
 # struct= ones ([64,30]) 
 # struct[(0,-1),:]=0
 # Rayleigh-Taylor instability:
-L=256
+L=32
 struct= ones ([4*L,L]) 
 struct[(0,-1),:]=0
 struct = struct.astype(int) # to make sure the data type is ok
@@ -40,22 +40,50 @@ nx = len(struct[0])             # domain size along x axis
 ## 1.2 real physical parameters:
 dx_ph = 10e-6                                    # grid resolution(m) 
 dt_ph = 10e-6                                    # physical time step (m)
-Density_real_H = double(3000)                 # kg/m3 # Heavier component
-Density_real_L = double(1000)                  # kg/m3 # lighter component
-visc_real_H = double(0.000058)                   # kg/(m.s) = rho*m2/s
-visc_real_L = visc_real_H /3                   # kg/(m.s)
-surface_tension_real = double(5e-6)            # N/m = kg/s2 = rho*m3/s2
+Density_h = double(1)                            # Heavier component LB density
+rho_star=double(1000)
+mu_star=100
+
+At= 0.998 #(Density_real_H -Density_real_L)/(Density_real_H +Density_real_L)    # Atwood number
+Re= double(3000)
+Ca= 0.44
+Pe= double(1000)
+t0=double(2000)#sqrt(L/abs(g_b_y)/At)
+
+# Re=Density_h*U0*L/visc_H
+# Ca=visc_H*U0/surface_tension
+# Pe=U0*L/mobility
+
+
+Density_l = Density_h / rho_star                      # lighter component density
+
+# Density_real_H = double(1000)                 # kg/m3 # Heavier component
+# Density_real_L = double(1)                  # kg/m3 # lighter component
+# visc_real_H = double(0.000027)                   # kg/(m.s) = rho*m2/s
+# visc_real_L = visc_real_H /100                   # kg/(m.s)
+# surface_tension_real = double(1.99e-6)            # N/m = kg/s2 = rho*m3/s2
 contact_angle = double(90)                       # in degrees (for user input)
 #q_in_real = double(0.05) / 60000000              # injction rate m3/s = ml/min / 60000000
 g_b_x=0.0                                         # body force in x direction
-g_b_y=-2e-6
+g_b_y=-(L/((t0**2)*At))
 ## 1.3 Model related or LB parameters:                                # time steps
 PhaseField_l = double(0)                                 # for lighter fluid --> CO2 
 PhaseField_h = double(1)                                 # for heavier fluid --> Water
 PhaseField_av=(PhaseField_h+PhaseField_l)/2  
-Density_h = double(3)                            # Heavier component LB density
+
 interface_thickness =double(5)                         #lu --> this value is proposed in text Sect. 3.2 and Ref.2
-mobility = double(0.0058)                               # eq.(11) - Mobility = thau_phi*Cs2*dt # --> this value is proposed in text Sect. 3.2 and Fakhari et al. (2017a)
+
+U0= sqrt(abs(g_b_y)*L)
+visc_H = Density_h*U0*L/Re #visc_real_H * C_t / C_rho / C_L**2
+visc_L = visc_H /mu_star
+
+nu_1 = visc_H/Density_h
+nu_0 = visc_L/Density_l
+surface_tension = visc_H*U0/Ca #surface_tension_real * C_t**2 / (C_rho) / (C_L**3) 
+mobility =0.02# U0*L/Pe#double(0.0082)                               # eq.(11) - Mobility = thau_phi*Cs2*dt # --> this value is proposed in text Sect. 3.2 and Fakhari et al. (2017a)
+
+
+n_steps = 4*t0.astype(int) 
 
 ## 1.4 initial condition:
 
@@ -90,8 +118,8 @@ u1_old = deepcopy(u1)
 #2: functions ################################################################
 def getPressure(g):
     # P here is normalized pressure ?? P* = P / (rho*Cs2)
-    P = sum(g, axis=2) + (dt/2)*(Density_h-Density_l)*Cs2*(u1*phi_x_1st_derivative + v1*phi_y_1st_derivative)   # using eq. (21b)
-    # P = sum(g, axis=2) # eq 32a ref. 2
+    # P = sum(g, axis=2) + (dt/2)*(Density_h-Density_l)*Cs2*(u1*phi_x_1st_derivative + v1*phi_y_1st_derivative)   # using eq. (21b)
+    P = sum(g, axis=2) # eq 32a ref. 2
     
     return P                        
     
@@ -167,34 +195,24 @@ cy = array([0,0,1,0,-1,1,1,-1,-1], dtype=int)          #weight coefficients
 n_pop= len(w);                                         # number of populations
 
 # conversion from physical to LB: 
-C_rho = Density_real_H/Density_h                       # density convertion factor: C_rho= rho/rho*          
-C_L = dx_ph/dx                                         # Length convertion factor: C_L= L/L* eq. 7.2 Timm KrUger book
-C_t = dt_ph/dt                                         # time convertion factor: C_t= t/t* eq. 7.12 Timm KrUger book
+# C_rho = Density_real_H/Density_h                       # density convertion factor: C_rho= rho/rho*          
+# C_L = dx_ph/dx                                         # Length convertion factor: C_L= L/L* eq. 7.2 Timm KrUger book
+# C_t = dt_ph/dt                                         # time convertion factor: C_t= t/t* eq. 7.12 Timm KrUger book
 
 # other parameters:
-nu_real_1 = visc_real_H/Density_real_H                 # kinematic viscosity m2/s
-nu_real_0 = visc_real_L/Density_real_L                 # kinematic viscosity m2/s
+# nu_real_1 = visc_real_H/Density_real_H                 # kinematic viscosity m2/s
+# nu_real_0 = visc_real_L/Density_real_L                 # kinematic viscosity m2/s
 contact_angle = double(contact_angle * pi / 180)       # converting to radian to use in simulation
-Density_l = Density_real_L / C_rho                     # lighter component density
-visc_H = visc_real_H * C_t / C_rho / C_L**2
-visc_L = visc_real_L * C_t / C_rho / C_L**2
-nu_1 = nu_real_1 * C_t / C_L**2
-nu_0 = nu_real_0 * C_t / C_L**2
-surface_tension = surface_tension_real * C_t**2 / (C_rho) / (C_L**3) 
+
+# nu_1 = nu_real_1 * C_t / C_L**2
+# nu_0 = nu_real_0 * C_t / C_L**2
+# surface_tension = surface_tension_real * C_t**2 / (C_rho) / (C_L**3) 
 #q_in = q_in_real * C_t / C_L**3     # lu_x**3/lu_t
 
 # neccessary constants for calculation of chemical potential --> in text - above eq.(4)
 betha = 12*surface_tension/interface_thickness
 kappa = 3*surface_tension*interface_thickness/2
 #dimentionless group
-
-At= (Density_real_H -Density_real_L)/(Density_real_H +Density_real_L)    # Atwood number
-U0= sqrt(abs(g_b_y)*L)
-Re=Density_h*U0*L/visc_H
-Ca=visc_H*U0/surface_tension
-Pe=U0*L/mobility
-t0=double(4000)#sqrt(L/abs(g_b_y)/At)#16000 for real
-n_steps = 12*t0.astype(int) 
  
 # MRT parameters --> from another paper from Fakhari, 2013 --> "Multiple-relaxation-time lattice Boltzmann method for immiscible fluids at high Reynolds numbers"
 M = array([[ 1,  1,  1,  1,  1,  1,  1,  1,  1],
@@ -228,8 +246,8 @@ M_inverse = array([[4,   -4,   4,   0,	 0,	 0,	 0,	 0,	 0],
 #omega7_pxx = 1          # digonal stress tensor -->     tunning
 #omega8_pxy = 1          # off-digonal stress tensor --> tunning
 # S_hat = diag((omega0_rho,omega1_e,omega2_epsilon,omega3_jx,omega4_qx,omega5_jy,omega6_qx,omega7_pxx,omega8_pxy))
-#S_hat = identity(9, dtype=double) # it will be updated to eq. 28 Ref. 2. later
-S_hat = diag((0,1,1,0,1.7,0,1.7,1,1))
+S_hat = identity(9, dtype=double) # it will be updated to eq. 28 Ref. 2. later
+# S_hat = diag((0,1,1,0,1.7,0,1.7,1,1))
 #normal vectors: should work on them but its ok for now
 # Identifing boundery nodes in form of 2D & 3D arrays + finding normal vector for all boundary solid nodes
     # coords_solid_boundaries[:,:,0] -->  "j"s of solid boundary nodes - if an element is equal to -100 it is not a solid boundary node
@@ -462,12 +480,12 @@ for t in range(n_steps+10):
     # Setting velocity of inlet and outlet boundary condition
     #u1[1:ny-1,0] = U_inlet 
     #v1[:,0] = 0
-    if (mod(t,1000)==0)&(t!=0):
+    if (mod(t,100)==0)&(t!=0):
         xx = time()
         print('step= {0} \t\t runtime= {1}' .format(t,xx-x))
         # save data 
     
-    if (mod(t,t0)==0):
+    if (mod(t,100)==0):
         # save data            
     
         results={}
@@ -476,7 +494,7 @@ for t in range(n_steps+10):
         results['velocity_y']=v1
         results['density']=rho
         results['Pressure']=P
-        fname_pkl='RESULTS/results_%s.pkl' % (t/t0)
+        fname_pkl='RESULTS/HDR/P2/results_%s.pkl' % (t/100)
         
         with open(fname_pkl,'wb') as fwrite:
             pickle.dump(results,fwrite)

@@ -1,30 +1,42 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Oct 30 13:44:25 2020
-
-@author: masoudi
-"""
-import matplotlib.pyplot as plt
+import pickle
 import numpy as np
-from copy import deepcopy
+import matplotlib.pyplot as plt
+from skimage.measure import shannon_entropy
 
+time = [i for i in range(1,8201)]
+entropy= np.zeros([2,8200])
+qq=-1
+qq+=1
 
-X = np.arange(0, 52, 1)
-Y = np.arange(0, 64, 1)
-U=deepcopy(u1)
-V=deepcopy(v1)
-U, V = np.meshgrid(X, Y)
+for i in time:
+    with open('C:/Users/masoudi/Desktop/privat/Papers/Nature/Results/python/Sensivity-9 cases_run2/results_3/results_%s.pkl'%(i), 'rb') as f:
+        struc = pickle.load(f)
+
+    struc =struc .astype(int)    
+    entropy[qq,i-1]=shannon_entropy(struc)
+    
+qq+=1
+for i in time:
+    with open('C:/Users/masoudi/Desktop/privat/Papers/Nature/Results/python/second duplicaterun/results_3/results_%s.pkl'%(i), 'rb') as f:
+        struc = pickle.load(f)
+
+    struc =struc .astype(int)    
+    entropy[qq,i-1]=shannon_entropy(struc)
 
 fig, ax = plt.subplots()
-q = ax.quiver(X, Y, U, V)
 
+# for j in B:
+#     # plt.figure()
+    # plt.plot(time, entropy[0,:],label='case %s'%j)
 
-plt.show()
+ax.scatter(x=time, y=entropy[0,:])
+ax.scatter(x=time, y=entropy[1,:])
+# ax.scatter(x=time, y=entropy[2,:],label='case 7')
+# ax.scatter(x=time, y=entropy[3,:],label='case 8')
+# ax.scatter(x=time, y=entropy[4,:],label='case 11')
+# ax.scatter(x=time, y=entropy[5,:],label='case 12')
 
-
-data_x = [10.0, 8.0, 13.0, 9.0, 11.0, 14.0, 6.0, 4.0, 12.0, 7.0, 5.0]
-data_y = [8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68]
-
-fig, ax = plt.subplots()
-
-ax.scatter(x=u1[:,5]/np.amax(u1), y=[i for i in range(64)], c="#E69F00")
+ax.set_xlabel("time")
+ax.set_ylabel("entropy")
+ax.set_title("t-e")    
+ax.legend()
