@@ -157,7 +157,7 @@ def update_force(P,rho,phi,visc,u1,v1,g,phi_x_1st_derivative,phi_y_1st_derivativ
             if struct[j,i]:
                 S_hat[7,7] = Sv[j,i]  #  eq.(28) Ref.2
                 S_hat[8,8] = Sv[j,i]  #  eq.(28) Ref.2
-                minus_M_S_M = (-1) * matmul( matmul(M_inverse, S_hat) , M )                
+                minus_M_S_M = matmul( matmul(M_inverse, S_hat) , M )                
                 collision_operator_F_mu[j,i,:] = matmul(minus_M_S_M , (g[j,i,:]-g_eq[j,i,:]))
     
     Sxx =  collision_operator_F_mu * cx * cx

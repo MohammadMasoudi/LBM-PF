@@ -17,10 +17,10 @@ import numpy as np
 from pyevtk.hl import gridToVTK
 
 #read the files
-A= [float(i) for i in range(57)]
+A= [float(i) for i in range(61)]
 for i in A:
-    # with open('C:/Users/masoudi/Documents/GitHub/LBM-PF/2-Results/2-Rayleigh-Taylor/HDR/OS2/P2/results_%s.pkl' %(i), 'rb') as f:
-    with open('Z:/Multiphase LBM/Results/Benchmarks/2-RT instability/LDR/P2/results_%s.pkl' %(i), 'rb') as f:
+    with open('C:/Users/masoudi/Documents/GitHub/LBM-PF/1-Codes/RESULTS/P2/results_%s.pkl' %(i), 'rb') as f:
+    # with open('Z:/Multiphase LBM/Results/Benchmarks/2-RT instability/LDR/P2/results_%s.pkl' %(i), 'rb') as f:
         results = pickle.load(f)
     
     NY = len(results['phase_field'])                # domain size along y axis
@@ -37,5 +37,5 @@ for i in A:
     X,Y ,Z = np.meshgrid(x,y,z)
     
     
-    gridToVTK("Z:/Multiphase LBM/Results/Benchmarks/2-RT instability/LDR/P2/LDR_P2_%s" %(int(i)), X, Y, Z, cellData={"Phi": phi})
-    # gridToVTK("C:/Users/masoudi/Documents/GitHub/LBM-PF/2-Results/2-Rayleigh-Taylor/HDR/OS2/P2/HDR_P2_%s" %(int(i)), X, Y, Z, cellData={"Phi": phi})
+    # gridToVTK("Z:/Multiphase LBM/Results/Benchmarks/2-RT instability/LDR/P2/LDR_P2_%s" %(int(i)), X, Y, Z, cellData={"Phi": phi})
+    gridToVTK("C:/Users/masoudi/Documents/GitHub/LBM-PF/1-Codes/RESULTS/P2/LDR_P2_%s" %(int(i)), X, Y, Z, cellData={"Phi": phi})
